@@ -2,18 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Interactive Markowitz Portfolio Optimization</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markowitz Portfolio Optimization Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 30px; background-color: #f9f9f9; }
-    .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 800px; margin: 0 auto; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; font-weight: bold; margin-bottom: 5px; }
-    input[type="text"], input[type="date"], input[type="number"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-    button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-    button:hover { background-color: #0056b3; }
-    #status { margin-top: 15px; font-weight: bold; }
-    #chartContainer { margin-top: 30px; }
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 30px; 
+      background-color: #f9f9f9; 
+      color: #333;
+    }
+    .card { 
+      background: white; 
+      padding: 25px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+      max-width: 750px; 
+      margin: 0 auto; 
+    }
+    .form-group { 
+      margin-bottom: 20px; 
+    }
+    label { 
+      display: block; 
+      font-weight: bold; 
+      margin-bottom: 5px; 
+    }
+    input[type="date"], select { 
+      width: 100%; 
+      padding: 10px; 
+      box-sizing: border-box; 
+      border: 1px solid #ccc; 
+      border-radius: 4px; 
+      font-size: 14px;
+    }
+    .date-row {
+      display: flex;
+      gap: 15px;
+    }
+    .date-row > div {
+      flex: 1;
+    }
+    button { 
+      background-color: #007bff; 
+      color: white; 
+      padding: 12px 24px; 
+      border: none; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      font-size: 16px; 
+      width: 100%;
+      font-weight: bold;
+      transition: background-color 0.2s;
+    }
+    button:hover { 
+      background-color: #0056b3; 
+    }
+    #status { 
+      margin-top: 15px; 
+      font-weight: bold; 
+      text-align: center;
+    }
+    #chartContainer { 
+      margin-top: 30px; 
+    }
   </style>
 </head>
 <body>
@@ -21,21 +73,25 @@
 <div class="card">
   <h2>Markowitz Portfolio Optimizer</h2>
   
+  <!-- Number of Stocks Selector -->
   <div class="form-group">
-    <label for="numStocks">Number of Stocks:</label>
-    <input type="number" id="numStocks" value="3" min="2" max="15" onchange="generateTickerInputs()">
+    <label for="numStocks">Number of Assets in Portfolio:</label>
+    <select id="numStocks">
+      <option value="3">3 Stocks (ICBP, KLBF, BBCA)</option>
+      <option value="5" selected>5 Stocks (ICBP, KLBF, BBCA, TLKM, UNVR)</option>
+      <option value="8">8 Stocks (ICBP, KLBF, BBCA, TLKM, UNVR, INDF, AALI, BMRI)</option>
+      <option value="10">10 Stocks (ICBP, KLBF, BBCA, TLKM, UNVR, INDF, AALI, BMRI, PGAS, CPIN)</option>
+      <option value="15">All 15 Stocks (Full Universe)</option>
+    </select>
   </div>
 
-  <div class="form-group" id="tickerInputsContainer">
-    <!-- Dynamic Ticker Inputs Will Appear Here -->
-  </div>
-
-  <div class="form-group" style="display: flex; gap: 15px;">
-    <div style="flex: 1;">
+  <!-- Date Range Inputs -->
+  <div class="form-group date-row">
+    <div>
       <label for="startDate">Start Date:</label>
       <input type="date" id="startDate" value="2023-01-01">
     </div>
-    <div style="flex: 1;">
+    <div>
       <label for="endDate">End Date:</label>
       <input type="date" id="endDate" value="2024-01-01">
     </div>
@@ -52,72 +108,46 @@
 
 <script>
   // YOUR APPS SCRIPT WEB APP URL (Ending in /exec)
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEdZaYUVqvHOnhL7BlLnVXL5Po2isrbYlN5Jaij-WsgSSGsUjYs8yS7m7C0vSFOxjz/exec"; 
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYED_WEB_APP_ID_HERE/exec"; 
+
+  // Default Master Universe of Stock Tickers
+  const MASTER_TICKERS = [
+    "ICBP", "KLBF", "BBCA", "TLKM", "UNVR", 
+    "INDF", "AALI", "BMRI", "PGAS", "CPIN", 
+    "AKRA", "BBNI", "BBRI", "BSDE", "MAIN"
+  ];
 
   let myChart = null;
 
-  // Initialize input fields on load
-  window.onload = function() {
-    generateTickerInputs();
-  };
-
-  function generateTickerInputs() {
-    const num = parseInt(document.getElementById('numStocks').value);
-    const container = document.getElementById('tickerInputsContainer');
-    container.innerHTML = '<label>Stock Tickers (e.g. ICBP, KLBF, BBCA):</label>';
-    
-    const defaultTickers = ["ICBP", "KLBF", "BBCA", "TLKM", "UNVR", "INDF", "AALI", "BMRI"];
-    
-    for (let i = 0; i < num; i++) {
-      const val = defaultTickers[i] || `STOCK${i+1}`;
-      container.innerHTML += `
-        <input type="text" class="ticker-input" style="margin-bottom:5px;" value="${val}" placeholder="Ticker ${i+1}">
-      `;
-    }
+  // Safely converts raw floats or formatted percent strings to clean float numbers
+  function parseSheetValue(val) {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    let cleanStr = String(val).replace('%', '').replace(',', '.').trim();
+    let num = parseFloat(cleanStr);
+    return String(val).includes('%') ? num : num * 100;
   }
 
- async function runOptimization() {
-  const statusDiv = document.getElementById("status");
-  statusDiv.style.color = "#007bff";
-  statusDiv.innerText = "Querying Google Finance & Updating Spreadsheet... (Takes ~10s)";
-  
-  // 1. Gather User Inputs
-  const tickerInputs = document.querySelectorAll('.ticker-input');
-  const tickers = Array.from(tickerInputs).map(input => input.value.trim()).filter(Boolean).join(",");
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
-  
-  if (!tickers || !startDate || !endDate) {
-    statusDiv.style.color = "red";
-    statusDiv.innerText = "Please fill in all stock tickers and date fields.";
-    return;
-  }
-
-  // 2. Build Query URL with explicit parameters
-  const baseUrl = "https://script.google.com/macros/s/YOUR_DEPLOYED_ID_HERE/exec"; 
-  const requestUrl = `${baseUrl}?tickers=${encodeURIComponent(tickers)}&startDate=${startDate}&endDate=${endDate}`;
-
-  try {
-    const response = await fetch(requestUrl, { method: "GET", redirect: "follow" });
-    const result = await response.json();
+  async function runOptimization() {
+    const statusDiv = document.getElementById("status");
+    statusDiv.style.color = "#007bff";
+    statusDiv.innerText = "Updating Spreadsheet & Solving Portfolio Matrix... (Takes ~10s)";
     
-    if (result.status === "success") {
-      statusDiv.style.color = "green";
-      statusDiv.innerText = "Optimization Complete!";
-      plotFrontier(result.frontierData);
-    } else {
+    // 1. Get Selected Number of Stocks & Slice Master Ticker Array
+    const numStocks = parseInt(document.getElementById('numStocks').value);
+    const selectedTickers = MASTER_TICKERS.slice(0, numStocks).join(",");
+    
+    const startDate = document.getElementById("startDate").value;
+    const endDate = document.getElementById("endDate").value;
+    
+    if (!startDate || !endDate) {
       statusDiv.style.color = "red";
-      statusDiv.innerText = "Error: " + result.message;
+      statusDiv.innerText = "Please select both a Start Date and End Date.";
+      return;
     }
-  } catch (err) {
-    console.error(err);
-    statusDiv.style.color = "red";
-    statusDiv.innerText = "Connection error. Check browser console or adblocker.";
-  }
-}
 
-    // Build API GET request URL with Query Parameters
-    const requestUrl = `${APPS_SCRIPT_URL}?tickers=${encodeURIComponent(tickers)}&startDate=${startDate}&endDate=${endDate}`;
+    // 2. Build GET Request URL
+    const requestUrl = `${APPS_SCRIPT_URL}?tickers=${encodeURIComponent(selectedTickers)}&startDate=${startDate}&endDate=${endDate}`;
 
     try {
       const response = await fetch(requestUrl, { method: "GET", redirect: "follow" });
@@ -134,35 +164,24 @@
     } catch (err) {
       console.error(err);
       statusDiv.style.color = "red";
-      statusDiv.innerText = "Connection Error. Check console logs or adblock settings.";
+      statusDiv.innerText = "Connection Error. Check browser console or adblocker settings.";
     }
   }
 
-function parseSheetValue(val) {
-  if (typeof val === 'number') return val;
-  if (!val) return 0;
-  // Strip % sign if present
-  let cleanStr = String(val).replace('%', '').replace(',', '.').trim();
-  let num = parseFloat(cleanStr);
-  // If original string had %, it's already in percent form (0.7222); otherwise convert float (0.0072 -> 0.7222)
-  return String(val).includes('%') ? num : num * 100;
-}
+  function plotFrontier(data) {
+    // Row 6 (index 5) = Std Deviation (X-axis)
+    // Row 5 (index 4) = Mean Return (Y-axis)
+    const stdDevs = data[5].slice(2); 
+    const means = data[4].slice(2);
 
-function plotFrontier(data) {
-  const stdDevs = data[5].slice(2); 
-  const means = data[4].slice(2);
-
-  const chartPoints = stdDevs.map((std, i) => ({ 
-    x: parseSheetValue(std).toFixed(4), 
-    y: parseSheetValue(means[i]).toFixed(4) 
-  }));
-  
-  // Render chart...
-}
+    const chartPoints = stdDevs.map((std, i) => ({ 
+      x: parseSheetValue(std).toFixed(4), 
+      y: parseSheetValue(means[i]).toFixed(4) 
+    }));
 
     const ctx = document.getElementById('frontierChart').getContext('2d');
     
-    if (myChart) myChart.destroy(); // Clear existing chart
+    if (myChart) myChart.destroy(); // Destroy previous instance to re-draw clean chart
 
     myChart = new Chart(ctx, {
       type: 'line',
@@ -174,7 +193,8 @@ function plotFrontier(data) {
           backgroundColor: 'rgba(0, 123, 255, 0.1)',
           fill: true,
           tension: 0.3,
-          pointRadius: 5
+          pointRadius: 5,
+          pointHoverRadius: 7
         }]
       },
       options: {
@@ -183,14 +203,19 @@ function plotFrontier(data) {
           tooltip: {
             callbacks: {
               label: function(ctx) {
-                return `Return: ${ctx.parsed.y}%, Risk: ${ctx.parsed.x}%`;
+                return `Expected Return: ${ctx.parsed.y}%, Risk (Std Dev): ${ctx.parsed.x}%`;
               }
             }
           }
         },
         scales: {
-          x: { type: 'linear', title: { display: true, text: 'Risk / Standard Deviation (%)' } },
-          y: { title: { display: true, text: 'Expected Return (%)' } }
+          x: { 
+            type: 'linear', 
+            title: { display: true, text: 'Risk / Standard Deviation (%)', font: { weight: 'bold' } } 
+          },
+          y: { 
+            title: { display: true, text: 'Expected Return (%)', font: { weight: 'bold' } } 
+          }
         }
       }
     });
