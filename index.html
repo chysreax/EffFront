@@ -28,13 +28,19 @@
       font-weight: bold; 
       margin-bottom: 5px; 
     }
-    input[type="date"], input[type="number"] { 
+    input[type="text"], input[type="date"], input[type="number"] { 
       width: 100%; 
       padding: 10px; 
       box-sizing: border-box; 
       border: 1px solid #ccc; 
       border-radius: 4px; 
       font-size: 14px;
+    }
+    .ticker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 5px;
     }
     .date-row {
       display: flex;
@@ -76,8 +82,16 @@
   
   <!-- Number of Stocks Input -->
   <div class="form-group">
-    <label for="numStocks">Number of Stocks (2 to 15):</label>
-    <input type="number" id="numStocks" value="4" min="2" max="15">
+    <label for="numStocks">Number of Stocks:</label>
+    <input type="number" id="numStocks" value="5" min="2" max="15" onchange="generateTickerInputs()" onkeyup="generateTickerInputs()">
+  </div>
+
+  <!-- Dynamic Stock Tickers Input Container -->
+  <div class="form-group">
+    <label>Stock Tickers (e.g. ICBP, KLBF, BBCA):</label>
+    <div id="tickerInputsContainer" class="ticker-grid">
+      <!-- Dynamic inputs render here -->
+    </div>
   </div>
 
   <!-- Date Range Inputs -->
@@ -92,7 +106,7 @@
     </div>
   </div>
 
-  <button type="button" id="btnRun" onclick="runOptimization()">Run Optimization</button>
+  <button type="button" onclick="runOptimization()">Run Optimization</button>
   
   <div id="status"></div>
   
@@ -103,16 +117,43 @@
 
 <script>
   // YOUR APPS SCRIPT WEB APP URL (Must end in /exec)
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEdZaYUVqvHOnhL7BlLnVXL5Po2isrbYlN5Jaij-WsgSSGsUjYs8yS7m7C0vSFOxjz/exec"; 
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYED_WEB_APP_ID_HERE/exec"; 
 
-  // Master Universe of 15 Stock Tickers
-  const MASTER_TICKERS = [
+  // Default Stock Suggestions
+  const DEFAULT_TICKERS = [
     "ICBP", "KLBF", "BBCA", "TLKM", "UNVR", 
     "INDF", "AALI", "BMRI", "PGAS", "CPIN", 
     "AKRA", "BBNI", "BBRI", "BSDE", "MAIN"
   ];
 
   let myChart = null;
+
+  // Run automatically when page loads
+  window.onload = function() {
+    generateTickerInputs();
+  };
+
+  // Dynamically creates text input boxes based on the Number of Stocks input
+  function generateTickerInputs() {
+    const numInput = document.getElementById('numStocks');
+    let num = parseInt(numInput.value) || 2;
+    num = Math.max(2, Math.min(15, num)); // Keep between 2 and 15
+    
+    const container = document.getElementById('tickerInputsContainer');
+    
+    // Preserve existing typed values if available
+    const existingInputs = container.querySelectorAll('.ticker-input');
+    const existingValues = Array.from(existingInputs).map(i => i.value);
+    
+    container.innerHTML = '';
+    
+    for (let i = 0; i < num; i++) {
+      const defaultValue = existingValues[i] || DEFAULT_TICKERS[i] || `STOCK${i+1}`;
+      container.innerHTML += `
+        <input type="text" class="ticker-input" value="${defaultValue}" placeholder="Stock ${i+1}">
+      `;
+    }
+  }
 
   function parseSheetValue(val) {
     if (typeof val === 'number') return val;
@@ -125,55 +166,53 @@
   async function runOptimization() {
     const statusDiv = document.getElementById("status");
     statusDiv.style.color = "#007bff";
-    statusDiv.innerText = "Connecting to Google Sheets Backend... (Takes ~10s)";
+    statusDiv.innerText = "Querying Google Finance & Updating Spreadsheet... (Takes ~10s)";
     
     try {
-      // 1. Get Inputs safely
-      const numInput = document.getElementById('numStocks');
-      let numStocks = parseInt(numInput ? numInput.value : "4") || 4;
-      numStocks = Math.max(2, Math.min(15, numStocks)); // Clamp between 2 and 15
-      
-      const selectedTickers = MASTER_TICKERS.slice(0, numStocks).join(",");
+      // 1. Collect typed stock tickers from the text boxes
+      const tickerInputs = document.querySelectorAll('.ticker-input');
+      const tickers = Array.from(tickerInputs)
+        .map(input => input.value.trim().toUpperCase())
+        .filter(Boolean)
+        .join(",");
       
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
       
-      if (!startDate || !endDate) {
+      if (!tickers || !startDate || !endDate) {
         statusDiv.style.color = "red";
-        statusDiv.innerText = "Please select both a Start Date and End Date.";
+        statusDiv.innerText = "Please fill in all stock ticker fields and dates.";
         return;
       }
 
-      // 2. Build GET Request URL
-      const requestUrl = `${APPS_SCRIPT_URL}?tickers=${encodeURIComponent(selectedTickers)}&startDate=${startDate}&endDate=${endDate}`;
+      // 2. Build GET Request URL with query parameters
+      const requestUrl = `${APPS_SCRIPT_URL}?tickers=${encodeURIComponent(tickers)}&startDate=${startDate}&endDate=${endDate}`;
 
-      // 3. Send Fetch Request
+      // 3. Send Request to Apps Script
       const response = await fetch(requestUrl, { method: "GET", redirect: "follow" });
       const result = await response.json();
       
       if (result.status === "success") {
         statusDiv.style.color = "green";
-        statusDiv.innerText = `Optimization Complete for ${numStocks} Stocks!`;
+        statusDiv.innerText = "Optimization Complete!";
         plotFrontier(result.frontierData);
       } else {
         statusDiv.style.color = "red";
-        statusDiv.innerText = "Apps Script Error: " + result.message;
+        statusDiv.innerText = "Script Error: " + result.message;
       }
     } catch (err) {
       console.error(err);
       statusDiv.style.color = "red";
-      statusDiv.innerText = "Network Error: Check browser console or make sure Apps Script URL ends in /exec.";
+      statusDiv.innerText = "Network Error. Check console logs or disable adblocker.";
     }
   }
 
   function plotFrontier(data) {
     if (!data || data.length < 6) {
-      document.getElementById("status").innerText = "Error: Invalid or empty output data from Google Sheet.";
+      document.getElementById("status").innerText = "Error: Invalid output from spreadsheet.";
       return;
     }
 
-    // Row 6 (index 5) = Std Deviation (X-axis)
-    // Row 5 (index 4) = Mean Return (Y-axis)
     const stdDevs = data[5].slice(2); 
     const means = data[4].slice(2);
 
@@ -184,7 +223,7 @@
 
     const ctx = document.getElementById('frontierChart').getContext('2d');
     
-    if (myChart) myChart.destroy(); // Clear existing canvas
+    if (myChart) myChart.destroy();
 
     myChart = new Chart(ctx, {
       type: 'line',
