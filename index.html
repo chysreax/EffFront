@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Portfolio Optimization Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h2>Interactive Efficient Frontier</h2>
+  <button onclick="runOptimization()">Optimize Portfolio</button>
+  <div id="status"></div>
+  
+  <!-- Canvas where the Frontier chart will be rendered -->
+  <canvas id="frontierChart" width="600" height="400"></canvas>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyaN0YtBUvA0CzDoftxU5ZIGdYFnN9o9eAe1olFLZwsyJUPfwzTaOODBSazQZvFCobr/exec";
+
+    async function runOptimization() {
+      document.getElementById("status").innerText = "Running Markowitz Solver...";
+      
+      try {
+        const response = await fetch(APPS_SCRIPT_URL);
+        const result = await response.json();
+        
+        document.getElementById("status").innerText = "Optimization Complete!";
+        plotFrontier(result.frontierData);
+      } catch (err) {
+        document.getElementById("status").innerText = "Error running optimization.";
+      }
+    }
+
+    function plotFrontier(data) {
+      // Row 6 = Std Deviation (X-axis), Row 5 = Mean Return (Y-axis)
+      const stdDevs = data[5].slice(2); // Skip labels
+      const means = data[4].slice(2);
+
+      const chartPoints = stdDevs.map((std, i) => ({ x: std * 100, y: means[i] * 100 }));
+
+      new Chart(document.getElementById('frontierChart'), {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Efficient Frontier Curve',
+            data: chartPoints,
+            borderColor: '#4bc0c0',
+            fill: false
+          }]
+        },
+        options: {
+          scales: {
+            x: { type: 'linear', title: { display: true, text: 'Risk (Std Dev %)' } },
+            y: { title: { display: true, text: 'Expected Return (%)' } }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
