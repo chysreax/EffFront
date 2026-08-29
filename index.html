@@ -76,23 +76,45 @@
     }
   }
 
-  async function runOptimization() {
-    const statusDiv = document.getElementById("status");
-    statusDiv.style.color = "#007bff";
-    statusDiv.innerText = "Querying Google Finance & Solving Portfolio Matrix... (Takes ~10s)";
+ async function runOptimization() {
+  const statusDiv = document.getElementById("status");
+  statusDiv.style.color = "#007bff";
+  statusDiv.innerText = "Querying Google Finance & Updating Spreadsheet... (Takes ~10s)";
+  
+  // 1. Gather User Inputs
+  const tickerInputs = document.querySelectorAll('.ticker-input');
+  const tickers = Array.from(tickerInputs).map(input => input.value.trim()).filter(Boolean).join(",");
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+  
+  if (!tickers || !startDate || !endDate) {
+    statusDiv.style.color = "red";
+    statusDiv.innerText = "Please fill in all stock tickers and date fields.";
+    return;
+  }
+
+  // 2. Build Query URL with explicit parameters
+  const baseUrl = "https://script.google.com/macros/s/YOUR_DEPLOYED_ID_HERE/exec"; 
+  const requestUrl = `${baseUrl}?tickers=${encodeURIComponent(tickers)}&startDate=${startDate}&endDate=${endDate}`;
+
+  try {
+    const response = await fetch(requestUrl, { method: "GET", redirect: "follow" });
+    const result = await response.json();
     
-    // Collect Inputs
-    const tickerInputs = document.querySelectorAll('.ticker-input');
-    const tickers = Array.from(tickerInputs).map(input => input.value.trim()).join(",");
-    const startDate = document.getElementById("startDate").value;
-    const endDate = document.getElementById("endDate").value;
-    
-    // Simple Frontend Input Validation
-    if (!tickers || !startDate || !endDate) {
+    if (result.status === "success") {
+      statusDiv.style.color = "green";
+      statusDiv.innerText = "Optimization Complete!";
+      plotFrontier(result.frontierData);
+    } else {
       statusDiv.style.color = "red";
-      statusDiv.innerText = "Error: Please fill in all date and ticker fields.";
-      return;
+      statusDiv.innerText = "Error: " + result.message;
     }
+  } catch (err) {
+    console.error(err);
+    statusDiv.style.color = "red";
+    statusDiv.innerText = "Connection error. Check browser console or adblocker.";
+  }
+}
 
     // Build API GET request URL with Query Parameters
     const requestUrl = `${APPS_SCRIPT_URL}?tickers=${encodeURIComponent(tickers)}&startDate=${startDate}&endDate=${endDate}`;
