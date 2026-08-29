@@ -13,22 +13,31 @@
   <canvas id="frontierChart" width="600" height="400"></canvas>
 
   <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEdZaYUVqvHOnhL7BlLnVXL5Po2isrbYlN5Jaij-WsgSSGsUjYs8yS7m7C0vSFOxjz/exec";
+async function runOptimization() {
+  document.getElementById("status").innerText = "Running Markowitz Solver...";
+  
+  // REPLACE THIS WITH YOUR DEPLOYED WEB APP URL (Ending in /exec)
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEdZaYUVqvHOnhL7BlLnVXL5Po2isrbYlN5Jaij-WsgSSGsUjYs8yS7m7C0vSFOxjz/exec"; 
 
-    async function runOptimization() {
-      document.getElementById("status").innerText = "Running Markowitz Solver...";
-      
-      try {
-        const response = await fetch(APPS_SCRIPT_URL);
-        const result = await response.json();
-        
-        document.getElementById("status").innerText = "Optimization Complete!";
-        plotFrontier(result.frontierData);
-      } catch (err) {
-        document.getElementById("status").innerText = "Error running optimization.";
-      }
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: "GET",
+      redirect: "follow" // Explicitly follow Google Apps Script 302 redirects
+    });
+    
+    const result = await response.json();
+    
+    if (result.status === "success") {
+      document.getElementById("status").innerText = "Optimization Complete!";
+      plotFrontier(result.frontierData);
+    } else {
+      document.getElementById("status").innerText = "Script Error: " + result.message;
     }
-
+  } catch (err) {
+    console.error(err);
+    document.getElementById("status").innerText = "Network / CORS Error. Check console logs.";
+  }
+}
     function plotFrontier(data) {
       // Row 6 = Std Deviation (X-axis), Row 5 = Mean Return (Y-axis)
       const stdDevs = data[5].slice(2); // Skip labels
