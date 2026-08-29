@@ -116,15 +116,27 @@
     }
   }
 
-  function plotFrontier(data) {
-    // Row 6 = Std Deviation (X-axis), Row 5 = Mean Return (Y-axis)
-    const stdDevs = data[5].slice(2); 
-    const means = data[4].slice(2);
+function parseSheetValue(val) {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  // Strip % sign if present
+  let cleanStr = String(val).replace('%', '').replace(',', '.').trim();
+  let num = parseFloat(cleanStr);
+  // If original string had %, it's already in percent form (0.7222); otherwise convert float (0.0072 -> 0.7222)
+  return String(val).includes('%') ? num : num * 100;
+}
 
-    const chartPoints = stdDevs.map((std, i) => ({ 
-      x: (parseFloat(std) * 100).toFixed(4), 
-      y: (parseFloat(means[i]) * 100).toFixed(4) 
-    }));
+function plotFrontier(data) {
+  const stdDevs = data[5].slice(2); 
+  const means = data[4].slice(2);
+
+  const chartPoints = stdDevs.map((std, i) => ({ 
+    x: parseSheetValue(std).toFixed(4), 
+    y: parseSheetValue(means[i]).toFixed(4) 
+  }));
+  
+  // Render chart...
+}
 
     const ctx = document.getElementById('frontierChart').getContext('2d');
     
