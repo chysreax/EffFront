@@ -155,8 +155,8 @@
     }
   }
 
-  function parseSheetValue(val) {
-    if (typeof val === 'number') return val;
+function parseSheetValue(val) {
+    if (typeof val === 'number') return val * 100; // Convert raw decimal to percentage scale
     if (!val) return 0;
     let cleanStr = String(val).replace('%', '').replace(',', '.').trim();
     let num = parseFloat(cleanStr);
@@ -207,19 +207,20 @@
     }
   }
 
-  function plotFrontier(data) {
+ function plotFrontier(data) {
     if (!data || data.length < 6) {
       document.getElementById("status").innerText = "Error: Invalid output from spreadsheet.";
       return;
     }
 
-    const stdDevs = data[5].slice(2); 
-    const means = data[4].slice(2);
+    // Include Column B (Min Var at index 1) alongside Column C+ (Target steps at index 2+)
+    const stdDevs = [data[5][1]].concat(data[5].slice(2)); 
+    const means = [data[4][1]].concat(data[4].slice(2));
 
     const chartPoints = stdDevs.map((std, i) => ({ 
       x: parseSheetValue(std).toFixed(4), 
       y: parseSheetValue(means[i]).toFixed(4) 
-    }));
+    })).filter(pt => !isNaN(pt.x) && !isNaN(pt.y));
 
     const ctx = document.getElementById('frontierChart').getContext('2d');
     
